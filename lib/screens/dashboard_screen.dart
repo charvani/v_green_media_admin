@@ -22,7 +22,7 @@ class DashboardScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _PageHeading(
-          eyebrow: 'SATURDAY, 31 OCTOBER 2026',
+          eyebrow: _formatFullDate(DateTime.now()).toUpperCase(),
           title: 'Good morning, team',
           subtitle: 'Here’s what’s happening with your gifting enquiries.',
           trailing: _exportButton(),

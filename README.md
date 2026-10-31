@@ -17,8 +17,37 @@ flutter build web
 
 ## Demo access
 
-The sign-in screen accepts any valid email address and a non-empty password.
-This is a demonstration gate, not production authentication.
+Firebase is initialized from the generated `lib/firebase_options.dart` file.
+Enable Email/Password sign-in in Firebase Authentication and create admin
+user `vgreen@gmail.com` in the Firebase Console with the password managed
+there. The app only accepts that admin email when Firebase is configured, and
+Firebase Authentication verifies the password; passwords are not stored in
+the Flutter source. When Firebase is unavailable in widget tests, the
+sign-in screen uses its demo-only gate.
+
+## Firestore data
+
+After an admin signs in, the dashboard listens in real time to the Firestore
+`enquiries` collection. Existing documents are mapped from the fields used by
+the enquiry form:
+
+- `name`, `company`, `email`, `phone`, and `occasion`
+- `number_of_units` and numeric `budget_per_unit`
+- `delivery_date` (Firestore timestamp)
+- `products_selected` and `customisation_needed` (arrays of strings)
+- `message`, `other_info`, and `enquiry_from` (`mobile` is displayed as
+  “Mobile app”)
+- optional `status`, `created_at`, or `submitted_at`
+
+Documents without a `status` appear as **New**. Changing an enquiry status
+writes the `status` field back to the same Firestore document. The list,
+dashboard totals, search, source filters, details, and CSV export use the
+Firestore records.
+
+The app's admin login must be authorized by Firebase Authentication and your
+Firestore rules must permit the signed-in admin to read and update enquiry
+documents. Keep the existing website/app submission rules separate as needed;
+do not make enquiry reads publicly accessible.
 
 ## What is included
 
@@ -37,10 +66,8 @@ This is a demonstration gate, not production authentication.
 - `lib/widgets/` contains shared dashboard, navigation, and enquiry components.
 - `lib/models/` and `lib/data/` contain the enquiry model and demo data.
 
-The dashboard uses local sample data. It does not yet connect to an API or
-database, and status changes are not persisted between sessions. A production
-handover should replace the sample data and demo sign-in with the shared
-backend, server-side authentication, and persistent enquiry updates.
+The dashboard's local sample data is used only when Firebase has not been
+initialized (such as in isolated widget tests).
 
 ## Stack
 

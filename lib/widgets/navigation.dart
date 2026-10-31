@@ -3,11 +3,13 @@ part of '../admin_app.dart';
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.selectedEnquiries,
+    required this.enquiryCount,
     required this.onSelect,
     required this.onLogout,
   });
 
   final bool selectedEnquiries;
+  final int enquiryCount;
   final ValueChanged<bool> onSelect;
   final VoidCallback onLogout;
 
@@ -43,7 +45,7 @@ class _Sidebar extends StatelessWidget {
           icon: Icons.inbox_outlined,
           label: 'Enquiries',
           selected: selectedEnquiries,
-          badge: '8',
+          badge: enquiryCount == 0 ? null : '$enquiryCount',
           onTap: () => onSelect(true),
         ),
         const Spacer(),

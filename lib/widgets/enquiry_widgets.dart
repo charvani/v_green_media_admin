@@ -33,6 +33,12 @@ class _EnquiryListCard extends StatelessWidget {
   final ValueChanged<String>? onSourceFilterChanged;
   final VoidCallback? onViewAll;
 
+  List<String> get _sourceOptions {
+    final sources = allEnquiries.map((item) => item.source).toSet().toList()
+      ..sort();
+    return ['All sources', ...sources];
+  }
+
   @override
   Widget build(BuildContext context) => _Panel(
     padding: EdgeInsets.zero,
@@ -109,7 +115,7 @@ class _EnquiryListCard extends StatelessWidget {
                     Expanded(
                       child: _FilterDropdown(
                         value: sourceFilter,
-                        options: const ['All sources', 'Website', 'Mobile app'],
+                        options: _sourceOptions,
                         onChanged: onSourceFilterChanged,
                       ),
                     ),
@@ -182,7 +188,7 @@ class _EnquiryListCard extends StatelessWidget {
                     DataColumn(label: _TableHeader('PRODUCT / OCCASION')),
                     DataColumn(label: _TableHeader('QUANTITY')),
                     DataColumn(label: _TableHeader('SOURCE')),
-                    DataColumn(label: _TableHeader('DATE')),
+                    DataColumn(label: _TableHeader('DELIVERY DATE')),
                     DataColumn(label: _TableHeader('STATUS')),
                     DataColumn(label: _TableHeader('')),
                   ],
@@ -239,7 +245,9 @@ class _EnquiryListCard extends StatelessWidget {
                             DataCell(_SourceTag(source: enquiry.source)),
                             DataCell(
                               Text(
-                                enquiry.date,
+                                enquiry.deliveryDate.isEmpty
+                                    ? enquiry.date
+                                    : enquiry.deliveryDate,
                                 style: const TextStyle(
                                   color: _muted,
                                   fontSize: 11,
@@ -427,7 +435,7 @@ class _EnquiryMobileCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${enquiry.quantity} units  ·  ${enquiry.date}',
+                '${enquiry.quantity} units  ·  ${enquiry.deliveryDate.isEmpty ? enquiry.date : enquiry.deliveryDate}',
                 style: const TextStyle(color: _muted, fontSize: 10),
               ),
               const SizedBox(height: 9),
@@ -608,6 +616,8 @@ class _EnquiryDetailsDialog extends StatelessWidget {
             _DetailLine(label: 'Phone', value: enquiry.phone),
             _DetailLine(label: 'Product', value: enquiry.product),
             _DetailLine(label: 'Occasion', value: enquiry.occasion),
+            if (enquiry.deliveryDate.isNotEmpty)
+              _DetailLine(label: 'Delivery date', value: enquiry.deliveryDate),
             _DetailLine(
               label: 'Quantity / budget',
               value: '${enquiry.quantity} units  ·  ${enquiry.budget}',
@@ -629,6 +639,17 @@ class _EnquiryDetailsDialog extends StatelessWidget {
               enquiry.message,
               style: const TextStyle(color: _ink, fontSize: 13, height: 1.5),
             ),
+            if (enquiry.customisations.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _DetailLine(
+                label: 'Customisation',
+                value: enquiry.customisations.join(', '),
+              ),
+            ],
+            if (enquiry.otherInfo.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _DetailLine(label: 'Other information', value: enquiry.otherInfo),
+            ],
             const SizedBox(height: 22),
             const Text(
               'UPDATE STATUS',

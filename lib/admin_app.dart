@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'csv_download.dart';
 part 'models/enquiry.dart';
 part 'data/demo_enquiries.dart';
@@ -16,6 +21,34 @@ const _green = Color(0xFF3D8B5F);
 const _canvas = Color(0xFFF5F7F4);
 const _ink = Color(0xFF202923);
 const _muted = Color(0xFF78827B);
+
+String _formatFullDate(DateTime date) {
+  const weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return '${weekdays[date.weekday - 1]}, ${date.day} '
+      '${months[date.month - 1]} ${date.year}';
+}
 
 class TribeGreenAdminApp extends StatelessWidget {
   const TribeGreenAdminApp({super.key});

@@ -10,7 +10,10 @@ class AdminShell extends StatefulWidget {
 class _AdminShellState extends State<AdminShell> {
   final _enquiries = _demoEnquiries();
   bool _isLoggedIn = false;
+  bool _isLoadingEnquiries = false;
   bool _showEnquiries = false;
+  String? _firestoreError;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _enquirySubscription;
   String _searchQuery = '';
   String _statusFilter = 'All statuses';
   String _sourceFilter = 'All sources';
@@ -26,6 +29,7 @@ class _AdminShellState extends State<AdminShell> {
             enquiry.company,
             enquiry.email,
             enquiry.product,
+            enquiry.otherInfo,
           ].any((value) => value.toLowerCase().contains(query));
       final matchesStatus =
           _statusFilter == 'All statuses' ||
@@ -36,15 +40,92 @@ class _AdminShellState extends State<AdminShell> {
     }).toList();
   }
 
-  void _login() => setState(() => _isLoggedIn = true);
+  Future<void> _login(String email, String password) async {
+    if (Firebase.apps.isNotEmpty) {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+    }
+    if (!mounted) return;
+    setState(() => _isLoggedIn = true);
+    if (Firebase.apps.isNotEmpty) _listenToEnquiries();
+  }
 
-  void _logout() => setState(() {
-    _isLoggedIn = false;
-    _showEnquiries = false;
-  });
+  void _listenToEnquiries() {
+    unawaited(_enquirySubscription?.cancel());
+    setState(() {
+      _isLoadingEnquiries = true;
+      _firestoreError = null;
+      _enquiries.clear();
+    });
+    _enquirySubscription = FirebaseFirestore.instance
+        .collection('enquiries')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
+            final enquiries = snapshot.docs
+                .map(
+                  (document) =>
+                      Enquiry.fromFirestore(document.id, document.data()),
+                )
+                .toList();
+            setState(() {
+              _enquiries
+                ..clear()
+                ..addAll(enquiries);
+              if (_sourceFilter != 'All sources' &&
+                  !enquiries.any((item) => item.source == _sourceFilter)) {
+                _sourceFilter = 'All sources';
+              }
+              _isLoadingEnquiries = false;
+              _firestoreError = null;
+            });
+          },
+          onError: (Object error) {
+            if (!mounted) return;
+            setState(() {
+              _isLoadingEnquiries = false;
+              _firestoreError = 'Could not load enquiries: $error';
+            });
+          },
+        );
+  }
 
-  void _updateStatus(Enquiry enquiry, EnquiryStatus status) {
+  Future<void> _logout() async {
+    try {
+      if (Firebase.apps.isNotEmpty) await FirebaseAuth.instance.signOut();
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        _showNotice('Could not sign out: ${error.message ?? error.code}');
+      }
+      return;
+    }
+    unawaited(_enquirySubscription?.cancel());
+    _enquirySubscription = null;
+    if (!mounted) return;
+    setState(() {
+      _isLoggedIn = false;
+      _showEnquiries = false;
+      _isLoadingEnquiries = false;
+    });
+  }
+
+  Future<void> _updateStatus(Enquiry enquiry, EnquiryStatus status) async {
+    final previousStatus = enquiry.status;
     setState(() => enquiry.status = status);
+    if (Firebase.apps.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('enquiries')
+          .doc(enquiry.id)
+          .update({'status': status.label});
+    } on FirebaseException catch (error) {
+      if (!mounted) return;
+      setState(() => enquiry.status = previousStatus);
+      _showNotice('Could not update enquiry status: ${error.message}');
+    }
   }
 
   Future<void> _exportCsv() async {
@@ -56,9 +137,13 @@ class _AdminShellState extends State<AdminShell> {
         'Email',
         'Phone',
         'Occasion',
+        'Delivery date',
         'Product',
+        'Products selected',
         'Quantity',
         'Budget per unit',
+        'Customisation needed',
+        'Other information',
         'Enquiry date',
         'Source',
         'Status',
@@ -72,9 +157,13 @@ class _AdminShellState extends State<AdminShell> {
           enquiry.email,
           enquiry.phone,
           enquiry.occasion,
+          enquiry.deliveryDate,
           enquiry.product,
+          enquiry.productsSelected.join('; '),
           enquiry.quantity.toString(),
           enquiry.budget,
+          enquiry.customisations.join('; '),
+          enquiry.otherInfo,
           enquiry.date,
           enquiry.source,
           enquiry.status.label,
@@ -97,6 +186,12 @@ class _AdminShellState extends State<AdminShell> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_enquirySubscription?.cancel());
+    super.dispose();
   }
 
   @override
@@ -124,8 +219,24 @@ class _AdminShellState extends State<AdminShell> {
                 child: Column(
                   children: [
                     if (!compact) _buildTopBar(),
+                    if (_firestoreError != null)
+                      MaterialBanner(
+                        content: Text(_firestoreError!),
+                        leading: const Icon(
+                          Icons.cloud_off_outlined,
+                          color: Color(0xFFAA5C5C),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: _listenToEnquiries,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     Expanded(
-                      child: _showEnquiries
+                      child: _isLoadingEnquiries
+                          ? const Center(child: CircularProgressIndicator())
+                          : _showEnquiries
                           ? _buildEnquiriesPage()
                           : _buildDashboard(),
                     ),
@@ -143,19 +254,21 @@ class _AdminShellState extends State<AdminShell> {
     width: 248,
     child: _Sidebar(
       selectedEnquiries: _showEnquiries,
+      enquiryCount: _enquiries.length,
       onSelect: (showEnquiries) => setState(() {
         _showEnquiries = showEnquiries;
         _searchQuery = '';
         _statusFilter = 'All statuses';
         _sourceFilter = 'All sources';
       }),
-      onLogout: _logout,
+      onLogout: () => unawaited(_logout()),
     ),
   );
 
   Widget _buildDrawer() => Drawer(
     child: _Sidebar(
       selectedEnquiries: _showEnquiries,
+      enquiryCount: _enquiries.length,
       onSelect: (showEnquiries) {
         setState(() {
           _showEnquiries = showEnquiries;
@@ -165,7 +278,7 @@ class _AdminShellState extends State<AdminShell> {
         });
         Navigator.of(context).pop();
       },
-      onLogout: _logout,
+      onLogout: () => unawaited(_logout()),
     ),
   );
 
@@ -181,8 +294,8 @@ class _AdminShellState extends State<AdminShell> {
         const Spacer(),
         const Icon(Icons.calendar_today_outlined, size: 16, color: _muted),
         const SizedBox(width: 9),
-        const Text(
-          'Saturday, 31 October 2026',
+        Text(
+          _formatFullDate(DateTime.now()),
           style: TextStyle(color: _muted, fontSize: 13),
         ),
         const SizedBox(width: 24),
@@ -194,7 +307,7 @@ class _AdminShellState extends State<AdminShell> {
   Widget _profileButton() => PopupMenuButton<String>(
     tooltip: 'Account menu',
     onSelected: (value) {
-      if (value == 'logout') _logout();
+      if (value == 'logout') unawaited(_logout());
     },
     itemBuilder: (context) => const [
       PopupMenuItem(value: 'logout', child: Text('Log out')),
