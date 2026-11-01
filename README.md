@@ -1,4 +1,4 @@
-# Tribe Green Admin
+# V Green Media Admin
 
 A responsive Flutter web admin panel for reviewing corporate gifting enquiries.
 
