@@ -1,0 +1,19 @@
+{
+  "projects": {
+    "default": "v-green-media"
+  },
+  "targets": {
+    "v-green-media": {
+      "hosting": {
+        "website": [
+          "v-green-media",
+          "v_green_media_admin"
+        ],
+        "admin": [
+          "v-green-media-fb0af"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

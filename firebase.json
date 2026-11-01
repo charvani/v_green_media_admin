@@ -1,1 +1,29 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"v-green-media","configurations":{"web":"1:158689395461:web:5c3dd99fd3b01e75c7ed6c"}}}}}}
+{
+    "hosting": {
+        "target": "admin",
+        "public": "build/web",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
+    },
+    "flutter": {
+        "platforms": {
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "v-green-media",
+                    "configurations": {
+                        "web": "1:158689395461:web:5c3dd99fd3b01e75c7ed6c"
+                    }
+                }
+            }
+        }
+    }
+}
